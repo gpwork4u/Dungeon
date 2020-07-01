@@ -12,16 +12,16 @@ class Wall_type:
     DOOR = 1
     @staticmethod
     def random():
-        return random.randint(0, 1)
+        return max(random.randint(0, 4), 1)
 
 class Block:
     def __init__(self):
         self.builded = False
         self.direction = [[Wall_type.DOOR for i in range(4)]]
+        self.objects = []
     def build(self, from_=None, walls=[]):
         self.builded = True
         self.random_monster = random.randint(0,100)
-        self.objects = []
         if self.random_monster == 0:
             self.objects.append(monsters.Slime(hp=100))
         elif self.random_monster < 20:
@@ -50,7 +50,7 @@ class Block:
         if self.random_monster == 0:
             print('!!!!BOSS!!!!')
         for o in self.objects:
-            block_str += 'slime_hp:%d'%o.hp
+            block_str += o.name + ':' + str(o.hp) + '\n'
 
         return block_str
 
@@ -58,9 +58,12 @@ class State:
     NORMAL = 0
 
 class Player:
-    def __init__(self, name='player'):
+    def __init__(self, coor_x=0, coor_y=0, name='player'):
         self.state = State.NORMAL
         self.name = name
+        self.coor_x = coor_x
+        self.coor_y = coor_y
+        self.position = None
         self.hp = 100
         self.str = 10
         self.agi = 10
@@ -69,78 +72,83 @@ class Player:
     def attack(self, target):
         target.hp -= self.str
 
-    def action(self, target):
-        self.attack(target)
-
-    def __str__(self):
-        return self.name
-
-if __name__ == '__main__':
-    player = Player()
-    move_actions = ['left', 'front', 'right', 'back', 'attack']
-    X_BORDER = 3
-    Y_BORDER = 3
-    dugeon = [[Block() for j in range(Y_BORDER)] for i in range(X_BORDER)]
-    dugeon = np.array(dugeon)
-    coor_x = 1
-    coor_y = 1
-    current_coor = (coor_x, coor_y)
-    current_block = dugeon[current_coor]
-    current_block.build()
-    while True:
-        os.system('clear')
-        print(current_coor)
-        print(current_block)
-        for i, act in enumerate(move_actions):
-            print('<%d>%s,'%(i, act),end='')
-        print()
-        print('enter action:')
-        action = int(input())
+    def action(self, action):
         if action < 4:
-            if not current_block.direction[action]:
-                continue
+            if not self.position.direction[action]:
+                return
             x_move = 0
             y_move = 0
             direction = 1
-            if action%2 == 0:
+            if action % 2 == 0:
                 x_move = 1
             else:
                 y_move = -1
             if action < 2:
                 direction = -1
-            coor_x += direction*x_move
-            coor_y += direction*y_move
-            current_coor = (coor_x, coor_y)
-            current_block.remove(player)
-            current_block = dugeon[current_coor]
-            current_block.append(player)
-            if not current_block.builded:
+            self.coor_x += direction * x_move
+            self.coor_y += direction * y_move
+            current_coor = (self.coor_x, self.coor_y)
+            self.position.objects.remove(player)
+            self.position = dugeon[current_coor]
+            self.position.objects.append(player)
+            if not self.position.builded:
                 walls = []
-                if coor_x == X_BORDER - 1 \
-                   or dugeon[coor_x+1][coor_y] == Wall_type.WALL:
+                if self.coor_x == X_BORDER - 1 \
+                   or dugeon[self.coor_x+1][self.coor_y] == Wall_type.WALL:
                     walls.append(Direction.RIGHT)
-                if coor_x == 0 \
-                   or dugeon[coor_x-1][coor_y] == Wall_type.WALL:
+                if self.coor_x == 0 \
+                   or dugeon[self.coor_x-1][self.coor_y] == Wall_type.WALL:
                     walls.append(Direction.LEFT)
-                if coor_y == Y_BORDER - 1 \
-                   or dugeon[coor_x-1][coor_y] == Wall_type.WALL:
+                if self.coor_y == Y_BORDER - 1 \
+                   or dugeon[self.coor_x-1][self.coor_y] == Wall_type.WALL:
                     walls.append(Direction.FRONT)
-                if coor_y == 0 \
-                   or dugeon[coor_x-1][coor_y] == Wall_type.WALL:
+                if self.coor_y == 0 \
+                   or dugeon[self.coor_x-1][self.coor_y] == Wall_type.WALL:
                     walls.append(Direction.BACK)
-                current_block.build(from_=action, walls=walls)
+                self.position.build(from_=action, walls=walls)
         else:
             print('<%d>%s,'%(0, 'cancel'),end='')
-            for i,target in enumerate(current_block.objects):
+            for i,target in enumerate(self.position.objects):
                 print('<%d>%s,'%(i+1, target.name),end='')
             print()
             print('choose target:')
             action = int(input())
             if not action:
-                continue
+                return
             else:
-                player.attack(current_block.objects[action-1])
-            if current_block.objects[action-1].hp <= 0:
-                del current_block.objects[action-1]
-            else:
-                current_block.objects[action-1].attack(player)
+                self.attack(self.position.objects[action-1])
+            if self.position.objects[action-1].hp <= 0:
+                del self.position.objects[action-1]
+
+    def __str__(self):
+        return self.name
+
+if __name__ == '__main__':
+    move_actions = ['left', 'front', 'right', 'back', 'attack']
+    X_BORDER = 10
+    Y_BORDER = 10
+    dugeon = [[Block() for j in range(Y_BORDER)] for i in range(X_BORDER)]
+    dugeon = np.array(dugeon)
+    coor_x = 1
+    coor_y = 1
+    start_block = dugeon[coor_x, coor_y]
+    players = [Player(coor_x=coor_x, coor_y=coor_y, name='gp%d'%i) for i in range(2)]
+    for p in players:
+        p.position = start_block
+        start_block.add_object(p)
+    start_block.build()
+    turn = 1
+    while True:
+        turn = (turn + 1)%2
+        player = players[turn]
+        current_coor = (player.coor_x, player.coor_y)
+        os.system('clear')
+        print('turn:%s'%player.name)
+        print(current_coor)
+        print(player.position)
+        for i, act in enumerate(move_actions):
+            print('<%d>%s,'%(i, act),end='')
+        print()
+        print('enter action:')
+        action = int(input())
+        player.action(action)
