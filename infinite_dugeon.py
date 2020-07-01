@@ -17,14 +17,15 @@ class Wall_type:
 class Block:
     def __init__(self):
         self.builded = False
-
+        self.direction = [[Wall_type.DOOR for i in range(4)]]
     def build(self, from_=None, walls=[]):
         self.builded = True
-        self.boss_room = not bool(random.randint(0,100))
-        if self.boss_room:
-            self.objects = [monsters.Slime(hp=100)]
-        else:
-            self.objects = [monsters.Slime()]
+        self.random_monster = random.randint(0,100)
+        self.objects = []
+        if self.random_monster == 0:
+            self.objects.append(monsters.Slime(hp=100))
+        elif self.random_monster < 20:
+            self.objects.append(monsters.Slime())
         self.direction = [Wall_type.random() for i in range(4)]
         if from_ != None:
             self.direction[from_-2] = Wall_type.DOOR
@@ -46,7 +47,7 @@ class Block:
                     '%s        %s\n'%(walls[0], walls[2]) + \
                     '|        |\n' + \
                     '+---%s---+\n'%walls[3]
-        if self.boss_room:
+        if self.random_monster == 0:
             print('!!!!BOSS!!!!')
         for o in self.objects:
             block_str += 'slime_hp:%d'%o.hp
@@ -57,22 +58,29 @@ class State:
     NORMAL = 0
 
 class Player:
-    def __init__(self):
+    def __init__(self, name='player'):
         self.state = State.NORMAL
+        self.name = name
         self.hp = 100
-        self.exp = 0
-        self.lv = 1
         self.str = 10
+        self.agi = 10
+        self.luc = 10
+        self.int = 10
     def attack(self, target):
         target.hp -= self.str
 
     def action(self, target):
         self.attack(target)
 
+    def __str__(self):
+        return self.name
+
 if __name__ == '__main__':
     player = Player()
     move_actions = ['left', 'front', 'right', 'back', 'attack']
-    dugeon = [[Block() for j in range(3)] for i in range(3)]
+    X_BORDER = 3
+    Y_BORDER = 3
+    dugeon = [[Block() for j in range(Y_BORDER)] for i in range(X_BORDER)]
     dugeon = np.array(dugeon)
     coor_x = 1
     coor_y = 1
@@ -80,6 +88,7 @@ if __name__ == '__main__':
     current_block = dugeon[current_coor]
     current_block.build()
     while True:
+        os.system('clear')
         print(current_coor)
         print(current_block)
         for i, act in enumerate(move_actions):
@@ -102,16 +111,22 @@ if __name__ == '__main__':
             coor_x += direction*x_move
             coor_y += direction*y_move
             current_coor = (coor_x, coor_y)
+            current_block.remove(player)
             current_block = dugeon[current_coor]
+            current_block.append(player)
             if not current_block.builded:
                 walls = []
-                if coor_x == dugeon.shape[0]-1:
+                if coor_x == X_BORDER - 1 \
+                   or dugeon[coor_x+1][coor_y] == Wall_type.WALL:
                     walls.append(Direction.RIGHT)
-                if coor_x == 0:
+                if coor_x == 0 \
+                   or dugeon[coor_x-1][coor_y] == Wall_type.WALL:
                     walls.append(Direction.LEFT)
-                if coor_y == dugeon.shape[1]-1:
+                if coor_y == Y_BORDER - 1 \
+                   or dugeon[coor_x-1][coor_y] == Wall_type.WALL:
                     walls.append(Direction.FRONT)
-                if coor_y == 0:
+                if coor_y == 0 \
+                   or dugeon[coor_x-1][coor_y] == Wall_type.WALL:
                     walls.append(Direction.BACK)
                 current_block.build(from_=action, walls=walls)
         else:
@@ -129,6 +144,3 @@ if __name__ == '__main__':
                 del current_block.objects[action-1]
             else:
                 current_block.objects[action-1].attack(player)
-                print('attacked hp:%d'%player.hp)
-
-        os.system('clear')
