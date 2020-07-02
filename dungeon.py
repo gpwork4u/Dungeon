@@ -12,7 +12,7 @@ class Wall_type:
     DOOR = 1
     @staticmethod
     def random():
-        return max(random.randint(0, 4), 1)
+        return min(random.randint(0, 2), 1)
 
 class Block:
     def __init__(self):
@@ -31,8 +31,28 @@ class Block:
             self.direction[from_-2] = Wall_type.DOOR
         for wall in walls:
             self.direction[wall] = Wall_type.WALL
+
     def add_object(self, object_):
         self.objects.append(object_)
+
+    def fb_format(self):
+        walls = ['|', '--', '|', '--']
+        for i, wall in enumerate(self.direction):
+            if wall:
+                if i % 2:
+                    walls[i] = '  '
+                else:
+                    walls[i] = ' '
+        block_str = '+---%s---+\n'%walls[1] + \
+                    '|              |\n' + \
+                    '%s              %s\n'%(walls[0], walls[2]) + \
+                    '|              |\n' + \
+                    '+---%s---+\n'%walls[3]
+        if self.random_monster == 0:
+            print('!!!!BOSS!!!!')
+        for i, o in enumerate(self.objects):
+             block_str += '<%d>%s(hp:%d):%s\n'%(i, o.name, o.hp, o.say)
+        return block_str
 
     def __str__(self):
         walls = ['|', '--', '|', '--']
@@ -44,13 +64,13 @@ class Block:
                     walls[i] = ' '
         block_str = '+---%s---+\n'%walls[1] + \
                     '|        |\n' + \
-                    '%s        %s\n'%(walls[0], walls[2]) + \
+                    '%s       %s\n'%(walls[0], walls[2]) + \
                     '|        |\n' + \
                     '+---%s---+\n'%walls[3]
         if self.random_monster == 0:
             print('!!!!BOSS!!!!')
-        for o in self.objects:
-            block_str += o.name + ':' + str(o.hp) + '\n'
+        for i, o in enumerate(self.objects):
+            block_str += '<%d>%s(hp:%d):%s\n'%(i, o.name, o.hp, o.say)
 
         return block_str
 
@@ -60,6 +80,7 @@ class State:
 class Player:
     def __init__(self, coor_x=0, coor_y=0, name='player'):
         self.state = State.NORMAL
+        self.say = ''
         self.name = name
         self.coor_x = coor_x
         self.coor_y = coor_y
@@ -72,8 +93,10 @@ class Player:
     def attack(self, target):
         target.hp -= self.str
 
-    def action(self, action):
+    def action(self, action, target=None):
+        self.say = ''
         if action < 4:
+            self.position.objects.remove(self)
             if not self.position.direction[action]:
                 return
             x_move = 0
@@ -88,37 +111,17 @@ class Player:
             self.coor_x += direction * x_move
             self.coor_y += direction * y_move
             current_coor = (self.coor_x, self.coor_y)
-            self.position.objects.remove(player)
-            self.position = dugeon[current_coor]
-            self.position.objects.append(player)
-            if not self.position.builded:
-                walls = []
-                if self.coor_x == X_BORDER - 1 \
-                   or dugeon[self.coor_x+1][self.coor_y] == Wall_type.WALL:
-                    walls.append(Direction.RIGHT)
-                if self.coor_x == 0 \
-                   or dugeon[self.coor_x-1][self.coor_y] == Wall_type.WALL:
-                    walls.append(Direction.LEFT)
-                if self.coor_y == Y_BORDER - 1 \
-                   or dugeon[self.coor_x-1][self.coor_y] == Wall_type.WALL:
-                    walls.append(Direction.FRONT)
-                if self.coor_y == 0 \
-                   or dugeon[self.coor_x-1][self.coor_y] == Wall_type.WALL:
-                    walls.append(Direction.BACK)
-                self.position.build(from_=action, walls=walls)
-        else:
-            print('<%d>%s,'%(0, 'cancel'),end='')
-            for i,target in enumerate(self.position.objects):
-                print('<%d>%s,'%(i+1, target.name),end='')
-            print()
-            print('choose target:')
-            action = int(input())
-            if not action:
+            
+        elif action == 4:
+            if not target:
                 return
             else:
-                self.attack(self.position.objects[action-1])
-            if self.position.objects[action-1].hp <= 0:
-                del self.position.objects[action-1]
+                self.attack(self.position.objects[target])
+            if self.position.objects[target].hp <= 0:
+                del self.position.objects[target]
+        
+        elif action == 5:
+            self.say = target
 
     def __str__(self):
         return self.name
@@ -152,3 +155,20 @@ if __name__ == '__main__':
         print('enter action:')
         action = int(input())
         player.action(action)
+        player.position = dugeon[player.coor_x,player.coor_y]
+        if not player.position.builded:
+            walls = []
+            if player.coor_x == X_BORDER - 1 \
+                or dugeon[player.coor_x+1][player.coor_y] == Wall_type.WALL:
+                walls.append(Direction.RIGHT)
+            if player.coor_x == 0 \
+                or dugeon[player.coor_x-1][player.coor_y] == Wall_type.WALL:
+                walls.append(Direction.LEFT)
+            if player.coor_y == Y_BORDER - 1 \
+                or dugeon[player.coor_x-1][player.coor_y] == Wall_type.WALL:
+                walls.append(Direction.FRONT)
+            if player.coor_y == 0 \
+                or dugeon[player.coor_x-1][player.coor_y] == Wall_type.WALL:
+                walls.append(Direction.BACK)
+            player.position.build(from_=action, walls=walls)
+            player.position.add_object(player)

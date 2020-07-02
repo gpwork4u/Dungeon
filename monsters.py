@@ -9,6 +9,7 @@ class Monster:
 class Slime(Monster):
     def __init__(self, hp=30):
         self.hp = hp
+        self.say = ''
         self.name = 'slime'
         self.str = hp / 10
     def attack(self, target):
